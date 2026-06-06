@@ -104,3 +104,9 @@ page, err := ag.Feed(ctx, "main", false, 20, "")
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+## 🔍 Keywords
+
+Twitter API, X API, Twitter CLI, X CLI, Twitter bot, X bot, Twitter automation, X automation, Twitter agent, X agent, Go Twitter client, Golang Twitter, GraphQL Twitter, Twitter scraper, X scraper, Twitter multi-account, cookie auth Twitter, anti-detection Twitter, autonomous agent Twitter, AI agent Twitter, Grok API, Grok CLI, Twitter DM, tweet automation, Twitter search, social media automation, social media bot, Twitter posting, automated tweets, Twitter scheduling, AI-powered Twitter, LLM Twitter, agent framework, Twitter toolkit, X toolkit, headless Twitter, browser automation Twitter, JA3 fingerprint, uTLS Twitter, rate limit Twitter, FxTwitter, x-client-transaction-id
