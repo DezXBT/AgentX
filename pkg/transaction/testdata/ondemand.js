@@ -1,0 +1,1 @@
+var x=function(s){return parseInt(s[2], 16)+(s[3], 16)+(s[5], 16)};

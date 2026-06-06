@@ -1,0 +1,18 @@
+# Binaries
+/agentx
+*.exe
+*.out
+
+# Local agentx state (contains session secrets)
+.agentx/
+accounts.json
+
+# Go
+/vendor/
+*.test
+coverage.out
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
