@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -183,7 +184,14 @@ type errObj struct {
 	Message string `json:"message"`
 }
 
+// emit writes the success envelope. A nil slice is written as an empty array so
+// list commands keep the documented contract (".data is an array") when a page
+// comes back with no entries — x.com does that for real, e.g. a media tab asked
+// with a very small count returns only cursors.
 func emit(data any, page *pagination) {
+	if rv := reflect.ValueOf(data); rv.IsValid() && rv.Kind() == reflect.Slice && rv.IsNil() {
+		data = []any{}
+	}
 	enc := json.NewEncoder(os.Stdout)
 	if pretty {
 		enc.SetIndent("", "  ")
@@ -1684,9 +1692,18 @@ func mediaFilename(rawURL, contentType string) string {
 
 var tweetIDRegex = regexp.MustCompile(`(\d{6,})`)
 
+// statusIDRegex pulls the id out of a /status/<id> (or /statuses/<id>) URL. The
+// older numeric-run regex demanded 6+ digits, so a short id such as
+// https://x.com/jack/status/20 was never extracted and the whole URL was sent to
+// x.com as the tweet id.
+var statusIDRegex = regexp.MustCompile(`/status(?:es)?/(\d+)`)
+
 func parseTweetID(s string) string {
 	s = strings.TrimSpace(s)
 	if strings.Contains(s, "/") {
+		if m := statusIDRegex.FindStringSubmatch(s); len(m) == 2 {
+			return m[1]
+		}
 		if m := tweetIDRegex.FindAllString(s, -1); len(m) > 0 {
 			return m[len(m)-1]
 		}

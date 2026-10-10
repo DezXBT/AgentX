@@ -30,7 +30,18 @@ func (c *Client) CommunityTweets(ctx context.Context, communityID string, count 
 	if err != nil {
 		return nil, err
 	}
+	if communityUnavailable(data) {
+		return nil, xerrors.New(xerrors.NotFound, "community %s not found", communityID)
+	}
 	return pageFrom(data), nil
+}
+
+// communityUnavailable reports whether x.com answered with a CommunityUnavailable
+// result (an unknown or removed community id). x.com sends that with HTTP 200 and
+// no GraphQL error, so without this check a caller sees an empty timeline or a
+// blank community object instead of "not found".
+func communityUnavailable(data json.RawMessage) bool {
+	return asString(asMap(deepGet(decode(data), "communityResults", "result"))["__typename"]) == "CommunityUnavailable"
 }
 
 // CommunityInfo returns metadata about a Community (name, description, member
@@ -44,6 +55,9 @@ func (c *Client) CommunityInfo(ctx context.Context, communityID string) (map[str
 	data, err := c.graphqlGET(ctx, "CommunityByRestId", vars, nil, nil)
 	if err != nil {
 		return nil, err
+	}
+	if communityUnavailable(data) {
+		return nil, xerrors.New(xerrors.NotFound, "community %s not found", communityID)
 	}
 	result := asMap(deepGet(decode(data), "communityResults", "result"))
 	view := communityView(result)

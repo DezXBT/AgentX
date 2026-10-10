@@ -3,6 +3,7 @@ package xclient
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"net/url"
 
 	"github.com/dezxbt/agentx/pkg/xerrors"
@@ -61,13 +62,38 @@ func (c *Client) UpdateBanner(ctx context.Context, image []byte) error {
 	return err
 }
 
-// FollowTopic / UnfollowTopic manage the account's followed Topics.
+// FollowTopic / UnfollowTopic manage the account's followed Topics. x.com
+// accepts the mutation for an unknown topic id and answers 200 with
+// following=true plus an empty topic_id/name, so the result must be validated or
+// a bogus topic id looks like success.
 func (c *Client) FollowTopic(ctx context.Context, topicID string) error {
-	return c.simpleWrite(ctx, "TopicFollow", map[string]any{"topicId": topicID})
+	data, err := c.graphqlPOST(ctx, "TopicFollow", map[string]any{"topicId": topicID}, nil, true)
+	if err != nil {
+		return err
+	}
+	return requireRealTopic(data)
 }
 
 func (c *Client) UnfollowTopic(ctx context.Context, topicID string) error {
-	return c.simpleWrite(ctx, "TopicUnfollow", map[string]any{"topicId": topicID})
+	data, err := c.graphqlPOST(ctx, "TopicUnfollow", map[string]any{"topicId": topicID}, nil, true)
+	if err != nil {
+		return err
+	}
+	return requireRealTopic(data)
+}
+
+// requireRealTopic rejects a topic mutation that x.com could not apply: a real
+// topic comes back with its name/topic_id filled in, an unknown one with both
+// empty (observed live: {"topic":{"following":true,"id":"VG9waWM6…","name":"","topic_id":""}}).
+func requireRealTopic(data json.RawMessage) error {
+	t := asMap(deepGet(decode(data), "topic"))
+	if t == nil {
+		return xerrors.New(xerrors.APIError, "x.com: topic mutation returned no topic")
+	}
+	if asString(t["topic_id"]) == "" && asString(t["name"]) == "" {
+		return xerrors.New(xerrors.NotFound, "topic not found")
+	}
+	return nil
 }
 
 // TrendLocation is a place trends are available for (WOEID + name).

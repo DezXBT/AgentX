@@ -503,20 +503,27 @@ func limitUserPage(p *models.UserPage, count int) *models.UserPage {
 // Tweet fetches a single tweet. With an account it uses the authenticated API;
 // without one it transparently falls back to the zero-auth FxTwitter backend.
 func (a *Agent) Tweet(ctx context.Context, accountName, tweetID string) (*models.Tweet, error) {
+	// An explicitly requested account that cannot be resolved must fail loudly:
+	// falling through to the unauthenticated FxTwitter path would otherwise look
+	// like success for an account name that does not exist.
+	var accountErr error
 	if a.hasAccounts() || accountName != "" {
 		cl, err := a.client(accountName)
-		if err == nil {
-			if page, derr := cl.TweetDetail(ctx, tweetID); derr == nil {
-				for i := range page.Tweets {
-					if page.Tweets[i].ID == tweetID {
-						return &page.Tweets[i], nil
-					}
-				}
-				if len(page.Tweets) > 0 {
-					return &page.Tweets[0], nil
+		if err != nil {
+			accountErr = err
+		} else if page, derr := cl.TweetDetail(ctx, tweetID); derr == nil {
+			for i := range page.Tweets {
+				if page.Tweets[i].ID == tweetID {
+					return &page.Tweets[i], nil
 				}
 			}
+			if len(page.Tweets) > 0 {
+				return &page.Tweets[0], nil
+			}
 		}
+	}
+	if accountName != "" && accountErr != nil {
+		return nil, accountErr
 	}
 	return a.fx.GetTweet(ctx, tweetID)
 }
