@@ -106,34 +106,52 @@ func (c *Client) Retweet(ctx context.Context, tweetID string) error {
 	})
 }
 
+// x.com answers HTTP 200 for a pin/unpin in BOTH outcomes and exposes no
+// reliable boolean: `added_tweet_to_highlights` is false in the success body
+// ("post pinned successfully") *and* in the rejection body ("post is not valid
+// for pinning"). The message text is therefore the only discriminator, so match
+// the success text exactly and fail closed on anything else — an unknown
+// failure must never look like success.
+const (
+	pinOK   = "post pinned successfully"
+	unpinOK = "post unpinned successfully"
+)
+
 // PinTweet pins one of the authenticated account's own tweets to its profile.
-// A rejected pin is an HTTP 200 with pin_tweet.message ("post is not valid for
-// pinning") and added_tweet_to_highlights=false, so the result is checked rather
-// than assumed.
 func (c *Client) PinTweet(ctx context.Context, tweetID string) error {
 	data, err := c.graphqlPOST(ctx, "PinTweet", map[string]any{"tweet_id": tweetID}, nil, true)
 	if err != nil {
 		return err
 	}
 	pt := asMap(deepGet(decode(data), "pin_tweet"))
-	if msg := asString(pt["message"]); msg != "" {
+	msg := asString(pt["message"])
+	switch {
+	case msg == pinOK:
+		return nil
+	case msg == "":
+		// No message at all: fall back to the highlight flag when present.
+		if ok, isBool := pt["added_tweet_to_highlights"].(bool); isBool && !ok {
+			return xerrors.New(xerrors.APIError, "x.com: tweet was not pinned")
+		}
+		return nil
+	default:
+		// e.g. "post is not valid for pinning"
 		return xerrors.New(xerrors.APIError, "x.com: %s", msg)
 	}
-	if ok, isBool := pt["added_tweet_to_highlights"].(bool); isBool && !ok {
-		return xerrors.New(xerrors.APIError, "x.com: tweet was not pinned")
-	}
-	return nil
 }
 
 // UnpinTweet removes the pinned tweet from the authenticated account's profile.
-// x.com reports "no pinned post changes required" (HTTP 200, no error) when the
-// tweet was not pinned, which is surfaced instead of a false success.
+// The success body also carries a message ("post unpinned successfully"), so
+// only a non-success message is treated as an error — otherwise a real unpin
+// would report failure. "no pinned post changes required" is a no-op and is
+// still surfaced.
 func (c *Client) UnpinTweet(ctx context.Context, tweetID string) error {
 	data, err := c.graphqlPOST(ctx, "UnpinTweet", map[string]any{"tweet_id": tweetID}, nil, true)
 	if err != nil {
 		return err
 	}
-	if msg := asString(asMap(deepGet(decode(data), "unpin_tweet"))["message"]); msg != "" {
+	msg := asString(asMap(deepGet(decode(data), "unpin_tweet"))["message"])
+	if msg != "" && msg != unpinOK {
 		return xerrors.New(xerrors.APIError, "x.com: %s", msg)
 	}
 	return nil
