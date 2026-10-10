@@ -106,6 +106,8 @@ func parseTweetResult(result any) *models.Tweet {
 	t.ConversationID = asString(legacy["conversation_id_str"])
 	t.IsReply = t.InReplyToID != ""
 
+	t.Poll = parsePoll(m)
+
 	if rt := asMap(deepGet(legacy, "retweeted_status_result", "result")); rt != nil {
 		t.IsRetweet = true
 		t.RetweetedBy = t.Author.ScreenName
@@ -115,6 +117,52 @@ func parseTweetResult(result any) *models.Tweet {
 	}
 	fillArticle(t, m, false)
 	return t
+}
+
+// parsePoll reads the poll attached to a tweet. x.com ships a poll as a card
+// (name "poll2choice_text_only", "poll3choice_...", ...) whose options live in
+// binding_values rather than in a typed object, so the keys are read directly:
+// choice<N>_label, choice<N>_count, end_datetime_utc, duration_minutes,
+// counts_are_final and selected_choice. Returns nil for a non-poll tweet.
+func parsePoll(m map[string]any) *models.Poll {
+	card := asMap(deepGet(m, "card", "legacy"))
+	if card == nil || !strings.HasPrefix(asString(card["name"]), "poll") {
+		return nil
+	}
+	vals := map[string]any{}
+	for _, item := range asSlice(card["binding_values"]) {
+		im := asMap(item)
+		key := asString(im["key"])
+		v := asMap(im["value"])
+		if key == "" || v == nil {
+			continue
+		}
+		if v["string_value"] != nil {
+			vals[key] = asString(v["string_value"])
+		} else if v["boolean_value"] != nil {
+			vals[key] = asBool(v["boolean_value"])
+		}
+	}
+	p := &models.Poll{
+		EndsAt:          asString(vals["end_datetime_utc"]),
+		DurationMinutes: asInt(vals["duration_minutes"]),
+		Final:           asBool(vals["counts_are_final"]),
+		Selected:        asInt(vals["selected_choice"]),
+	}
+	for i := 1; i <= 4; i++ {
+		label := asString(vals["choice"+strconv.Itoa(i)+"_label"])
+		if label == "" {
+			continue
+		}
+		p.Choices = append(p.Choices, models.PollChoice{
+			Label: label,
+			Count: asInt(vals["choice"+strconv.Itoa(i)+"_count"]),
+		})
+	}
+	if len(p.Choices) == 0 {
+		return nil
+	}
+	return p
 }
 
 // unwrapTweet returns the tweet object, peeling off the
