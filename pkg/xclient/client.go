@@ -88,7 +88,14 @@ func New(acc *account.Account, opts ...Option) (*Client, error) {
 		cl.tx = transaction.NewProvider(
 			transaction.WithHTTPClient(cl.httpClient),
 			transaction.WithUserAgent(ua),
+			transaction.WithCookie(acc.Cookie()),
 		)
+	} else {
+		// A provider shared across accounts (see agent.New) is created without
+		// cookies, and x.com only serves the chunk map the transaction-id
+		// generator needs to an authenticated session — so make sure this
+		// account's cookies are used for the home-page fetch.
+		cl.tx.SetCookie(acc.Cookie())
 	}
 	return cl, nil
 }
@@ -246,10 +253,13 @@ func (c *Client) setHeaders(req *http.Request, method, path string, hasBody, wri
 	txid, err := c.tx.TransactionID(method, path)
 	if err != nil {
 		// transaction id is best-effort; reads often succeed without it, but
-		// writes almost always need it, so fail writes loudly.
+		// writes almost always need it, so fail writes loudly. Read the cause
+		// out loud too: a silent unsigned request hides real breakage (x.com
+		// changing the home page shape, expired cookies) until a write fails.
 		if write {
-			return xerrors.Wrap(xerrors.APIError, err, "generate x-client-transaction-id")
+			return xerrors.Wrap(xerrors.APIError, err, "generate x-client-transaction-id: %v", err)
 		}
+		fmt.Fprintf(os.Stderr, "agentx: warning: x-client-transaction-id unavailable (%v); sending request unsigned\n", err)
 		txid = ""
 	}
 
