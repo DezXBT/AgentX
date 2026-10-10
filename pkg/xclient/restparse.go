@@ -48,6 +48,10 @@ func parseV11Tweet(m map[string]any) *models.Tweet {
 		},
 		Source: "rest_v1",
 	}
+	t.InReplyToID = asString(m["in_reply_to_status_id_str"])
+	t.InReplyToUser = asString(m["in_reply_to_screen_name"])
+	t.ConversationID = asString(m["conversation_id_str"])
+	t.IsReply = t.InReplyToID != ""
 	if u := asMap(m["user"]); u != nil {
 		t.Author = models.Author{
 			ID:              asString(u["id_str"]),

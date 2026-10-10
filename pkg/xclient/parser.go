@@ -98,6 +98,14 @@ func parseTweetResult(result any) *models.Tweet {
 	t.URLs = parseURLs(legacy)
 	t.Media = parseMedia(legacy)
 
+	// Reply linkage. Without it a client cannot tell a reply from a standalone
+	// post except by scanning the "@handle" text prefix, and cannot confirm a
+	// reply attached to the intended parent.
+	t.InReplyToID = asString(legacy["in_reply_to_status_id_str"])
+	t.InReplyToUser = asString(legacy["in_reply_to_screen_name"])
+	t.ConversationID = asString(legacy["conversation_id_str"])
+	t.IsReply = t.InReplyToID != ""
+
 	if rt := asMap(deepGet(legacy, "retweeted_status_result", "result")); rt != nil {
 		t.IsRetweet = true
 		t.RetweetedBy = t.Author.ScreenName

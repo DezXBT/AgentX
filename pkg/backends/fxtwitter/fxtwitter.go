@@ -51,6 +51,9 @@ type apiTweet struct {
 	Author    apiAuthor `json:"author"`
 	Media     *apiMedia `json:"media"`
 	Quote     *apiTweet `json:"quote"`
+	// FxTwitter exposes reply linkage as a screen name plus the parent id.
+	ReplyingTo       string `json:"replying_to"`
+	ReplyingToStatus string `json:"replying_to_status"`
 }
 
 type apiAuthor struct {
@@ -128,6 +131,10 @@ func convert(t *apiTweet) *models.Tweet {
 		},
 		Source: "fxtwitter",
 	}
+	out.InReplyToID = t.ReplyingToStatus
+	out.InReplyToUser = t.ReplyingTo
+	out.ConversationID = t.ReplyingToStatus
+	out.IsReply = t.ReplyingToStatus != "" || t.ReplyingTo != ""
 	if t.Media != nil {
 		for _, m := range t.Media.All {
 			out.Media = append(out.Media, models.Media{

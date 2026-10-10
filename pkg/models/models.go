@@ -32,20 +32,27 @@ type Media struct {
 
 // Tweet is the normalised representation of a single tweet.
 type Tweet struct {
-	ID           string   `json:"id"`
-	Text         string   `json:"text"`
-	Author       Author   `json:"author"`
-	Metrics      Metrics  `json:"metrics"`
-	CreatedAt    string   `json:"createdAt,omitempty"`
-	Media        []Media  `json:"media,omitempty"`
-	URLs         []string `json:"urls,omitempty"`
-	IsRetweet    bool     `json:"isRetweet,omitempty"`
-	RetweetedBy  string   `json:"retweetedBy,omitempty"`
-	Lang         string   `json:"lang,omitempty"`
-	QuotedTweet  *Tweet   `json:"quotedTweet,omitempty"`
-	ArticleTitle string   `json:"articleTitle,omitempty"`
-	ArticleText  string   `json:"articleText,omitempty"`
-	Source       string   `json:"source,omitempty"` // which backend produced this tweet
+	ID            string   `json:"id"`
+	Text          string   `json:"text"`
+	Author        Author   `json:"author"`
+	Metrics       Metrics  `json:"metrics"`
+	CreatedAt     string   `json:"createdAt,omitempty"`
+	Media         []Media  `json:"media,omitempty"`
+	URLs          []string `json:"urls,omitempty"`
+	IsRetweet     bool     `json:"isRetweet,omitempty"`
+	RetweetedBy   string   `json:"retweetedBy,omitempty"`
+	IsReply       bool     `json:"isReply,omitempty"`
+	InReplyToID   string   `json:"inReplyToId,omitempty"`
+	InReplyToUser string   `json:"inReplyToUser,omitempty"`
+	// ConversationID is the root tweet of the thread. Equal to ID for a tweet
+	// that starts a thread, so it is what tells a client which thread a reply
+	// landed in without fetching the parent.
+	ConversationID string `json:"conversationId,omitempty"`
+	Lang           string `json:"lang,omitempty"`
+	QuotedTweet    *Tweet `json:"quotedTweet,omitempty"`
+	ArticleTitle   string `json:"articleTitle,omitempty"`
+	ArticleText    string `json:"articleText,omitempty"`
+	Source         string `json:"source,omitempty"` // which backend produced this tweet
 }
 
 // UserProfile is the normalised representation of a user.
