@@ -8,6 +8,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/dezxbt/agentx/pkg/xerrors"
 )
 
 // Store is a thread-safe, file-backed collection of accounts.
@@ -123,7 +125,9 @@ func (s *Store) Get(name string) (*Account, error) {
 	defer s.mu.RUnlock()
 	a, ok := s.accounts[name]
 	if !ok {
-		return nil, fmt.Errorf("account %q not found", name)
+		// account_error, not the api_error default: the documented code list maps
+		// "the named account is not usable" to account_error, and agents switch on it.
+		return nil, xerrors.New(xerrors.AccountError, "account %q not found", name)
 	}
 	cp := *a
 	return &cp, nil
