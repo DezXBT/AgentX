@@ -163,6 +163,7 @@ var commands = map[string]handler{
 	"delete":        simpleAction("delete"),
 	"bookmark":      cmdBookmark,
 	"unbookmark":    simpleAction("unbookmark"),
+	"oauth":         cmdOAuth,
 }
 
 // --- envelope ---
@@ -1831,6 +1832,8 @@ UTILITIES
   download <tweet|url> [--out f] [--all]   save tweet media (or a direct URL)
   watch <mentions|search <q>> [--interval 60s] [--once]   stream new tweets (NDJSON)
   account check [name]                     verify an account's cookies are valid
+  oauth inspect|approve <authorize_url>    Sign-in-with-X: show/auto-approve OAuth consent
+  oauth callback <callback_url>            finish sign-in by GETting the app callback
 
 ACCOUNTS
   account add --name N --auth-token T --ct0 C [--cookie ...] [--user-agent ...] [--proxy ...]
