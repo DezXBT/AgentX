@@ -84,6 +84,9 @@ UTILITIES
 download <id|url> [--out f] [--all]       save tweet media / a direct URL
 watch <mentions|search <q>> [--interval 60s] [--once]   NDJSON stream of new tweets
 account list|remove <n>|default [n]|check [n]
+oauth inspect <authorize_url>             Sign-in-with-X: app name + scope audit (no approval)
+oauth approve <authorize_url>             auto-approve consent → callback URL (see PERMISSION RULE)
+oauth callback <callback_url>             GET the app callback to finish sign-in
 ```
 
 ## Pagination
@@ -93,6 +96,7 @@ List commands return `.pagination.nextCursor`. Pass it back via `--cursor` for t
 `not_authenticated` bad/expired cookies · `not_found` · `invalid_input` · `rate_limited` (see `.rateLimit`) · `query_id_error` X rotated a GraphQL id → set `AGENTX_QID_<Operation>=<id>` env or update constants · `network_error` · `api_error` x.com rejected (message has detail) · `account_error`.
 
 ## Gotchas
+- **`oauth` PERMISSION RULE (Sign-in-with-X, WAJIB diikuti agen)** — `oauth approve` menyerahkan permission akun ke app pihak ketiga. Selalu jalankan `oauth inspect` dulu dan baca `writeScopes` di envelope: kalau GAK kosong (`tweet.write`, `users.write`, `follows.write`, `dm.read/write`, `like.write`, `bookmark.write`) → **stop, minta konfirmasi eksplisit user manusia sebelum approve.** Jangan pernah approve scope account-control atas inisiatif sendiri — ada dev jahat yang sengaja bundling permission itu biar agent posting/follow/baca DM pakai akun user tanpa sadar (control akun = post sendiri tanpa disuruh = pelanggaran). Scope `*.read` aman; `offline.access` masuk `persistentScopes` (refresh token, bukan write) — boleh lanjut. Envelope inspect/approve selalu bawa `permissionWarning` yang sudah menandai ini otomatis.
 - **Premium-gated** (work only on X Premium accounts; routing is correct, x.com returns a clear error otherwise): `edit`, note/long-form `post` (>280), `bookmarks folder` writes.
 - **Account-eligibility**: `community create` needs an eligible account.
 - **likers**: X returns the liker list only to the tweet's author; empty for others (retweeters is public).
@@ -109,3 +113,4 @@ List commands return `.pagination.nextCursor`. Pass it back via `--cursor` for t
 - Schedule: `agentx schedule +2h "later"` then `agentx scheduled`
 - Ask Grok: `agentx grok "USD to IDR today?"` · Image: `agentx grok image "a dragon" --out d.png`
 - Paginate: `agentx feed -n 40` → take `nextCursor` → `agentx feed --cursor <c>`
+- Sign-in-with-X: `agentx oauth inspect <url>` (cek permissionWarning) → `agentx oauth approve <url>` → GET/`oauth callback` pada `data.redirect_uri` → verifikasi session via endpoint "me" situs target
