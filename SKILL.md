@@ -96,28 +96,28 @@ List commands return `.pagination.nextCursor`. Pass it back via `--cursor` for t
 `not_authenticated` bad/expired cookies · `not_found` · `invalid_input` · `rate_limited` (see `.rateLimit`) · `query_id_error` X rotated a GraphQL id → set `AGENTX_QID_<Operation>=<id>` env or update constants · `network_error` · `api_error` x.com rejected (message has detail) · `account_error`.
 
 ## Gotchas
-- **`oauth` PERMISSION RULE (Sign-in-with-X, WAJIB diikuti agen)** — `oauth approve` menyerahkan permission akun ke app pihak ketiga. Selalu jalankan `oauth inspect` dulu dan baca `writeScopes` di envelope: kalau GAK kosong (`tweet.write`, `users.write`, `follows.write`, `dm.read/write`, `like.write`, `bookmark.write`) → **stop, minta konfirmasi eksplisit user manusia sebelum approve.** Jangan pernah approve scope account-control atas inisiatif sendiri — ada dev jahat yang sengaja bundling permission itu biar agent posting/follow/baca DM pakai akun user tanpa sadar (control akun = post sendiri tanpa disuruh = pelanggaran). Scope `*.read` aman; `offline.access` masuk `persistentScopes` (refresh token, bukan write) — boleh lanjut. Envelope inspect/approve selalu bawa `permissionWarning` yang sudah menandai ini otomatis.
-- **DUA TIPE SITUS Sign-in-with-X — diagnose dulu sebelum retry (index pola):**
-  - **TIPE A — callback langsung set session** (contoh terverifikasi: fanszn/IPXExchange, Sovren):
-    `GET redirect_uri` → situs set-cookie session langsung → login selesai.
-    `agentx oauth callback` menangkap cookie itu di `data.sessionCookies`;
-    bawa cookie state situs via `--cookie name=value` (repeatable) kalau perlu.
-    Verify via endpoint `me`/profile situs.
-  - **TIPE B — callback session-bound** (contoh terverifikasi: quest.dogeos.com):
-    situs butuh login utamanya sendiri dulu (DogeOS = SIWE wallet → jwt),
-    lalu `POST .../social-connections/{provider}/initiate` (Bearer) →
-    `sessionId` + `launchUrl` yang di-pair server-side. `agentx oauth approve
-    <launchUrl>` tetap dapat code, tapi callback-nya harus dieksekusi dengan
-    session/state situs — gejala tanpa itu: "Authentication failed" /
-    `invalid_state` / tetap logout padahal approve sukses.
-    **Fix: tool tipis spesifik situs** (~100 baris: login situs → initiate →
-    `agentx oauth approve` → GET callback backend → poll status async
-    `pending → connected`). Jangan re-initiate saat pending — macet.
-  - **Diagnosa cepat:** approve sukses + X kasih code, tapi situs tetap
-    logout/error → pasti Tipe B; cari endpoint `initiate`/`confirm` di JS
-    bundle situs, jangan buang waktu retry callback.
-  - Referensi lengkap: skill `signin-with-x` (Endpoint Discovery +
-    Session-bound callbacks) dan skill `dogeos-connect-x` (pola Tipe B utuh).
+- **`oauth` PERMISSION RULE (Sign-in-with-X, agents MUST follow)** — `oauth approve` hands the account's permissions to a third-party app. Always run `oauth inspect` first and read `writeScopes` in the envelope: if it is NOT empty (`tweet.write`, `users.write`, `follows.write`, `dm.read/write`, `like.write`, `bookmark.write`) → **stop and get explicit confirmation from the human operator before approving.** Never approve account-control scopes on your own initiative — malicious developers deliberately bundle those permissions so the agent posts/follows/reads DMs on the user's behalf without the user realizing it (acting on the account unprompted = a violation). Scope `*.read` is safe; `offline.access` is reported in `persistentScopes` (refresh tokens, not a write) — OK to proceed. The inspect/approve envelope always carries a `permissionWarning` that flags this automatically.
+- **TWO KINDS OF Sign-in-with-X SITES — diagnose first, don't retry blindly:**
+  - **TYPE A — callback sets the session directly** (verified: fanszn/IPXExchange, Sovren):
+    `GET redirect_uri` → the site sets its session cookie immediately → sign-in done.
+    `agentx oauth callback` captures those cookies in `data.sessionCookies`;
+    pass the site's state cookies via `--cookie name=value` (repeatable) if needed.
+    Verify via the site's `me`/profile endpoint.
+  - **TYPE B — session-bound callback** (verified: quest.dogeos.com):
+    the site requires its own primary login first (DogeOS = SIWE wallet → jwt),
+    then `POST .../social-connections/{provider}/initiate` (Bearer) →
+    `sessionId` + `launchUrl` paired server-side. `agentx oauth approve
+    <launchUrl>` still gets the code, but the callback must be executed WITH
+    the site's session/state — otherwise: "Authentication failed" /
+    `invalid_state` / still logged out despite a successful approve.
+    **Fix: a thin site-specific tool** (~100 lines: site login → initiate →
+    `agentx oauth approve` → GET the backend callback → poll async status
+    `pending → connected`). Do not re-initiate while pending — it jams.
+  - **Quick diagnosis:** approve succeeds and X issues a code, but the site
+    stays logged out / errors → it is Type B; find the `initiate`/`confirm`
+    endpoints in the site's JS bundle and stop retrying the callback.
+  - Full reference: the `signin-with-x` skill (Endpoint Discovery +
+    Session-bound callbacks) and the `dogeos-connect-x` skill (complete Type B pattern).
 - **Premium-gated** (work only on X Premium accounts; routing is correct, x.com returns a clear error otherwise): `edit`, note/long-form `post` (>280), `bookmarks folder` writes.
 - **Account-eligibility**: `community create` needs an eligible account.
 - **likers**: X returns the liker list only to the tweet's author; empty for others (retweeters is public).
@@ -134,4 +134,4 @@ List commands return `.pagination.nextCursor`. Pass it back via `--cursor` for t
 - Schedule: `agentx schedule +2h "later"` then `agentx scheduled`
 - Ask Grok: `agentx grok "USD to IDR today?"` · Image: `agentx grok image "a dragon" --out d.png`
 - Paginate: `agentx feed -n 40` → take `nextCursor` → `agentx feed --cursor <c>`
-- Sign-in-with-X: `agentx oauth inspect <url>` (cek permissionWarning) → `agentx oauth approve <url>` → GET/`oauth callback` pada `data.redirect_uri` → verifikasi session via endpoint "me" situs target
+- Sign-in-with-X: `agentx oauth inspect <url>` (check permissionWarning) → `agentx oauth approve <url>` → GET/`oauth callback` on `data.redirect_uri` → verify the session via the target site's "me" endpoint
