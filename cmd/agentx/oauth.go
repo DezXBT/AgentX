@@ -67,13 +67,23 @@ func cmdOAuth(ctx context.Context, args []string) {
 	}
 	targetURL := rest[0]
 
+	var (
+		rest3     []string
+		authToken string
+		ct0       string
+	)
 	switch sub {
 	case "callback":
-		cbURL, body, err := fetchCallback(ctx, targetURL)
-		if err != nil {
-			fail(err)
+		// GET the app callback WITH a cookie jar: any Set-Cookie the app
+		// issues on login (its own session) is captured and returned, so the
+		// agent finishes sign-in without a browser. The jar only ever holds
+		// the third-party app's cookies — it never sees X credentials.
+		siteCookies, _ := flagValues(rest, "--cookie")
+		res2, cbErr := runCallback(ctx, targetURL, siteCookies)
+		if cbErr != nil {
+			fail(cbErr)
 		}
-		emit(map[string]any{"callback": cbURL, "status": "done", "response": truncateStr(body, 500)}, nil)
+		emit(res2, nil)
 		return
 	case "inspect", "approve":
 		// fall through to the shared path below
@@ -83,8 +93,9 @@ func cmdOAuth(ctx context.Context, args []string) {
 
 	// approve/inspect need the cookies of an account. --auth-token/--ct0
 	// overrides are supported for one-shot use without a stored account.
-	authToken, rest2 := flagValue(rest, "--auth-token")
-	ct0, rest3 := flagValue(rest2, "--ct0")
+	var rest2 []string
+	authToken, rest2 = flagValue(rest, "--auth-token")
+	ct0, rest3 = flagValue(rest2, "--ct0")
 	if authToken == "" {
 		authToken = os.Getenv("TWITTER_AUTH_TOKEN")
 	}
