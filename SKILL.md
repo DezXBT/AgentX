@@ -116,8 +116,11 @@ List commands return `.pagination.nextCursor`. Pass it back via `--cursor` for t
   - **Quick diagnosis:** approve succeeds and X issues a code, but the site
     stays logged out / errors → it is Type B; find the `initiate`/`confirm`
     endpoints in the site's JS bundle and stop retrying the callback.
-  - Full reference: the `signin-with-x` skill (Endpoint Discovery +
-    Session-bound callbacks) and the `dogeos-connect-x` skill (complete Type B pattern).
+  - **Working example: `examples/dogeos_connect_x.py`** — a complete,
+    verified Type B connector (SIWE login → initiate → `agentx oauth approve`
+    → GET backend callback → async poll). Copy it and swap the endpoints for
+    your target site; the Gotchas in its docstring (field names, pending
+    semantics, stuck-session cleanup) are the mistakes agents actually make.
 - **Premium-gated** (work only on X Premium accounts; routing is correct, x.com returns a clear error otherwise): `edit`, note/long-form `post` (>280), `bookmarks folder` writes.
 - **Account-eligibility**: `community create` needs an eligible account.
 - **likers**: X returns the liker list only to the tweet's author; empty for others (retweeters is public).
