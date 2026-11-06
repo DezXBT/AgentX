@@ -97,6 +97,27 @@ List commands return `.pagination.nextCursor`. Pass it back via `--cursor` for t
 
 ## Gotchas
 - **`oauth` PERMISSION RULE (Sign-in-with-X, WAJIB diikuti agen)** — `oauth approve` menyerahkan permission akun ke app pihak ketiga. Selalu jalankan `oauth inspect` dulu dan baca `writeScopes` di envelope: kalau GAK kosong (`tweet.write`, `users.write`, `follows.write`, `dm.read/write`, `like.write`, `bookmark.write`) → **stop, minta konfirmasi eksplisit user manusia sebelum approve.** Jangan pernah approve scope account-control atas inisiatif sendiri — ada dev jahat yang sengaja bundling permission itu biar agent posting/follow/baca DM pakai akun user tanpa sadar (control akun = post sendiri tanpa disuruh = pelanggaran). Scope `*.read` aman; `offline.access` masuk `persistentScopes` (refresh token, bukan write) — boleh lanjut. Envelope inspect/approve selalu bawa `permissionWarning` yang sudah menandai ini otomatis.
+- **DUA TIPE SITUS Sign-in-with-X — diagnose dulu sebelum retry (index pola):**
+  - **TIPE A — callback langsung set session** (contoh terverifikasi: fanszn/IPXExchange, Sovren):
+    `GET redirect_uri` → situs set-cookie session langsung → login selesai.
+    `agentx oauth callback` menangkap cookie itu di `data.sessionCookies`;
+    bawa cookie state situs via `--cookie name=value` (repeatable) kalau perlu.
+    Verify via endpoint `me`/profile situs.
+  - **TIPE B — callback session-bound** (contoh terverifikasi: quest.dogeos.com):
+    situs butuh login utamanya sendiri dulu (DogeOS = SIWE wallet → jwt),
+    lalu `POST .../social-connections/{provider}/initiate` (Bearer) →
+    `sessionId` + `launchUrl` yang di-pair server-side. `agentx oauth approve
+    <launchUrl>` tetap dapat code, tapi callback-nya harus dieksekusi dengan
+    session/state situs — gejala tanpa itu: "Authentication failed" /
+    `invalid_state` / tetap logout padahal approve sukses.
+    **Fix: tool tipis spesifik situs** (~100 baris: login situs → initiate →
+    `agentx oauth approve` → GET callback backend → poll status async
+    `pending → connected`). Jangan re-initiate saat pending — macet.
+  - **Diagnosa cepat:** approve sukses + X kasih code, tapi situs tetap
+    logout/error → pasti Tipe B; cari endpoint `initiate`/`confirm` di JS
+    bundle situs, jangan buang waktu retry callback.
+  - Referensi lengkap: skill `signin-with-x` (Endpoint Discovery +
+    Session-bound callbacks) dan skill `dogeos-connect-x` (pola Tipe B utuh).
 - **Premium-gated** (work only on X Premium accounts; routing is correct, x.com returns a clear error otherwise): `edit`, note/long-form `post` (>280), `bookmarks folder` writes.
 - **Account-eligibility**: `community create` needs an eligible account.
 - **likers**: X returns the liker list only to the tweet's author; empty for others (retweeters is public).
