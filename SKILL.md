@@ -103,6 +103,8 @@ List commands return `.pagination.nextCursor`. Pass it back via `--cursor` for t
     `agentx oauth callback` captures those cookies in `data.sessionCookies`;
     pass the site's state cookies via `--cookie name=value` (repeatable) if needed.
     Verify via the site's `me`/profile endpoint.
+    **Working example: `examples/fanszn_connect_x.py`** — complete verified
+    chain (start redirect -> approve -> callback with state cookie -> /me).
   - **TYPE B — session-bound callback** (verified: quest.dogeos.com):
     the site requires its own primary login first (DogeOS = SIWE wallet → jwt),
     then `POST .../social-connections/{provider}/initiate` (Bearer) →
